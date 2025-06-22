@@ -1,0 +1,12 @@
+[workspace]
+members = ["app", "entity", "migration"]
+resolver = "3"
+authors = ["{{author_name}}"]
+license = "MIT"
+repository = "https://github.com/{{authors}}/{{project-name}}"
+
+[workspace.dependencies]
+sea-orm = { version = "1.1.12", features = [
+    "macros", "debug-print", "with-chrono", "with-uuid", "runtime-tokio-rustls", "sqlx-postgres", "with-json", "with-time"
+] }
+serde = { version = "1.0.219", features = ["derive"] }

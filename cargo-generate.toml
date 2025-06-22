@@ -1,0 +1,23 @@
+[template]
+exclude = [
+    ".git/",
+    ".env",
+    "target/",
+    "Cargo.lock"
+]
+
+# 自定义占位符
+[placeholders.project_description]
+type = "string"
+prompt = "Enter project description"
+default = "A web application built with Axum"
+
+[placeholders.author_name]
+type = "string"
+prompt = "Enter author name"
+default = "{{authors}}"
+
+[placeholders.database_name]
+type = "string"
+prompt = "Enter database name"
+default = "{{project-name | snake_case}}_db"
