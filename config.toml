@@ -1,11 +1,11 @@
 [server]
-host = "0.0.0.0"       
+host = "0.0.0.0"
 port = 3001
 timeout = 300
 
 [database]
 # url 通过环境变量 DATABASE_URL 设置
-max_connections = 10   
+max_connections = 10
 pool_timeout = 30
 
 [logging]

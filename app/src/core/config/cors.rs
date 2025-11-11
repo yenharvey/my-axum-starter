@@ -54,10 +54,7 @@ impl Default for CorsConfig {
                 "X-Request-ID".to_string(),
             ],
             allow_credentials: false,
-            expose_headers: vec![
-                "Content-Type".to_string(),
-                "X-Total-Count".to_string(),
-            ],
+            expose_headers: vec!["Content-Type".to_string(), "X-Total-Count".to_string()],
             max_age: 3600,
         }
     }
@@ -113,6 +110,13 @@ impl ConfigSection for CorsConfig {
         }
         if self.allow_headers.is_empty() {
             return Err("CORS 允许请求头列表不能为空".to_string());
+        }
+        // 当允许凭证时，不能使用通配符方法
+        if self.allow_credentials && self.allow_methods.contains(&"*".to_string()) {
+            return Err(
+                "Invalid CORS configuration: Cannot combine `Access-Control-Allow-Credentials: true` with `Access-Control-Allow-Methods: *`"
+                    .to_string(),
+            );
         }
         Ok(())
     }

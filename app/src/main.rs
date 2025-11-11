@@ -137,7 +137,7 @@ async fn main() -> Result<(), AppError> {
     }
 
     // 配置 CORS
-    let cors_layer = build_cors_layer(&config.cors);
+    let cors_layer = build_cors_layer(&config.cors)?;
     info!(
         "🌐 CORS 配置：允许源 {:?}，允许凭证 {}",
         config.cors.allow_origins, config.cors.allow_credentials
