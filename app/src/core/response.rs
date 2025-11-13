@@ -3,6 +3,8 @@ use aide::generate::GenContext;
 use aide::openapi::Operation;
 use axum::Json;
 use axum::response::{IntoResponse, Response};
+use indexmap::IndexMap;
+use schemars::JsonSchema;
 use serde::Serialize;
 
 /// 统一的API响应结构
@@ -19,10 +21,10 @@ use serde::Serialize;
 /// - 11100-11199: 文件上传相关错误
 /// - 11200-11299: 其他业务错误
 /// - 其他: 通用错误
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 pub struct ApiResponse<T>
 where
-    T: Serialize,
+    T: Serialize + JsonSchema,
 {
     /// 业务状态码，0表示成功，其他值表示错误（非HTTP状态码）
     pub code: u32,
@@ -39,7 +41,7 @@ where
 
 impl<T> ApiResponse<T>
 where
-    T: Serialize,
+    T: Serialize + JsonSchema,
 {
     /// 创建新的API响应
     ///
@@ -109,21 +111,42 @@ where
 
 impl<T> IntoResponse for ApiResponse<T>
 where
-    T: Serialize,
+    T: Serialize + JsonSchema,
 {
     fn into_response(self) -> Response {
         Json(self).into_response()
     }
 }
 
-impl<T: Serialize> OperationOutput for ApiResponse<T> {
-    type Inner = ();
+impl<T: Serialize + JsonSchema> OperationOutput for ApiResponse<T> {
+    type Inner = T;
 
     fn operation_response(
-        _ctx: &mut GenContext,
+        ctx: &mut GenContext,
         _operation: &mut Operation,
     ) -> Option<aide::openapi::Response> {
-        None
+        let schema = ctx.schema.subschema_for::<ApiResponse<T>>();
+
+        let schema_obj = aide::openapi::SchemaObject {
+            json_schema: schema,
+            external_docs: None,
+            example: None,
+        };
+
+        let mut content = IndexMap::new();
+        content.insert(
+            "application/json".to_string(),
+            aide::openapi::MediaType {
+                schema: Some(schema_obj),
+                ..Default::default()
+            },
+        );
+
+        Some(aide::openapi::Response {
+            description: "操作成功，返回相应的数据".to_string(),
+            content,
+            ..Default::default()
+        })
     }
 
     fn inferred_responses(
