@@ -1,7 +1,13 @@
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set, Condition};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, Set,
+};
 use tracing::instrument;
 
-use crate::{error::AuthError, shared::{FromState, password, jwt::JwtService}, AppState};
+use crate::{
+    AppState,
+    error::AuthError,
+    shared::{FromState, jwt::JwtService, password},
+};
 use entity::user;
 
 use super::dto::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse};
@@ -41,17 +47,19 @@ impl UserService {
     /// 失败返回 AuthError（如果用户已存在、验证失败等）
     #[instrument(skip(self, req))]
     pub async fn register(&self, req: RegisterRequest) -> Result<RegisterResponse, AuthError> {
-        // 验证输入参数
+        // 验证用户名
         if req.username.is_empty() || req.username.len() < 3 || req.username.len() > 20 {
-            return Err(AuthError::InvalidInput);
+            return Err(AuthError::InvalidUsername);
         }
 
+        // 验证密码长度
         if req.password.len() < 8 {
-            return Err(AuthError::InvalidInput);
+            return Err(AuthError::PasswordTooShort);
         }
 
+        // 验证两次密码是否一致
         if req.password != req.password_confirm {
-            return Err(AuthError::InvalidInput);
+            return Err(AuthError::PasswordMismatch);
         }
 
         // 检查用户名是否已存在
@@ -122,7 +130,7 @@ impl UserService {
             .filter(
                 Condition::any()
                     .add(user::Column::Username.eq(&req.username_or_email))
-                    .add(user::Column::Email.eq(&req.username_or_email))
+                    .add(user::Column::Email.eq(&req.username_or_email)),
             )
             .one(&self.db)
             .await
@@ -143,7 +151,8 @@ impl UserService {
         }
 
         // 生成 JWT token
-        let token = self.jwt_service
+        let token = self
+            .jwt_service
             .generate_token(user_model.id, 7 * 24 * 3600) // 7天过期
             .map_err(|e| AuthError::Internal(e.to_string()))?;
 

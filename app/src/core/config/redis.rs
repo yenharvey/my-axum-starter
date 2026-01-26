@@ -9,17 +9,11 @@ use super::section::ConfigSection;
 ///
 /// 包含 Redis 服务器连接信息。Redis 是可选的，如果未配置 URL 则不会初始化 Redis。
 /// 连接池参数采用 deadpool-redis 的默认配置。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct RedisConfig {
     /// Redis 服务器 URL（可选，格式: redis://[:password]@host:port/db）
     pub url: Option<String>,
-}
-
-impl Default for RedisConfig {
-    fn default() -> Self {
-        Self { url: None }
-    }
 }
 
 impl ConfigSection for RedisConfig {
@@ -28,10 +22,10 @@ impl ConfigSection for RedisConfig {
     }
 
     fn load_from_value(&mut self, value: &Value) -> Result<(), String> {
-        if let Some(obj) = value.as_object() {
-            if let Some(url) = obj.get("url").and_then(|v| v.as_str()) {
-                self.url = Some(url.to_string());
-            }
+        if let Some(obj) = value.as_object()
+            && let Some(url) = obj.get("url").and_then(|v| v.as_str())
+        {
+            self.url = Some(url.to_string());
         }
         Ok(())
     }

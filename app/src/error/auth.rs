@@ -20,9 +20,17 @@ pub enum AuthError {
     #[error("密码错误")]
     InvalidPassword,
 
-    /// 用户名或邮箱格式错误
-    #[error("用户名或邮箱格式错误")]
-    InvalidInput,
+    /// 用户名格式无效
+    #[error("用户名格式无效")]
+    InvalidUsername,
+
+    /// 密码长度至少8个字符
+    #[error("密码长度至少8个字符")]
+    PasswordTooShort,
+
+    /// 两次输入的密码不一致
+    #[error("两次输入的密码不一致")]
+    PasswordMismatch,
 
     /// 用户被停用
     #[error("用户已被停用")]
@@ -41,7 +49,9 @@ impl AuthError {
             AuthError::UserAlreadyExists => 11201,
             AuthError::UserNotFound => 11202,
             AuthError::InvalidPassword => 11203,
-            AuthError::InvalidInput => 11204,
+            AuthError::InvalidUsername => 11204,
+            AuthError::PasswordTooShort => 11206,
+            AuthError::PasswordMismatch => 11207,
             AuthError::UserInactive => 11205,
             AuthError::Internal(_) => 11299,
         }
@@ -54,10 +64,18 @@ impl IntoResponse for AuthError {
             AuthError::UserAlreadyExists => (StatusCode::CONFLICT, 11201, "用户已存在".to_string()),
             AuthError::UserNotFound => (StatusCode::NOT_FOUND, 11202, "用户不存在".to_string()),
             AuthError::InvalidPassword => (StatusCode::UNAUTHORIZED, 11203, "密码错误".to_string()),
-            AuthError::InvalidInput => (
+            AuthError::InvalidUsername => {
+                (StatusCode::BAD_REQUEST, 11204, "用户名格式无效".to_string())
+            }
+            AuthError::PasswordTooShort => (
                 StatusCode::BAD_REQUEST,
-                11204,
-                "用户名或邮箱格式错误".to_string(),
+                11206,
+                "密码长度至少8个字符".to_string(),
+            ),
+            AuthError::PasswordMismatch => (
+                StatusCode::BAD_REQUEST,
+                11207,
+                "两次输入的密码不一致".to_string(),
             ),
             AuthError::UserInactive => (StatusCode::FORBIDDEN, 11205, "用户已被停用".to_string()),
             AuthError::Internal(e) => (StatusCode::INTERNAL_SERVER_ERROR, 11299, e),

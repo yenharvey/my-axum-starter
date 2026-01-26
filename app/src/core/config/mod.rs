@@ -23,7 +23,7 @@ use std::path::PathBuf;
 ///
 /// 聚合所有配置段（服务器、数据库、日志、敏感信息、跨域、Redis）。
 /// 通过 `load()` 方法从配置文件和环境变量加载配置，支持多层次优先级管理。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct AppConfig {
     /// 服务器配置
@@ -183,18 +183,5 @@ impl AppConfig {
     /// 成功返回 `Ok(())`，失败返回应用错误
     pub fn init_tracing(&self) -> Result<(), crate::AppError> {
         crate::core::logging::init_tracing(&self.logging)
-    }
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            server: ServerConfig::default(),
-            database: DatabaseConfig::default(),
-            logging: LoggingConfig::default(),
-            secrets: SecretsConfig::default(),
-            cors: CorsConfig::default(),
-            redis: RedisConfig::default(),
-        }
     }
 }

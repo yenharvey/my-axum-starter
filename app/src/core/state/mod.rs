@@ -84,9 +84,7 @@ impl AppState {
                 )))
             })?);
 
-        Database::connect(opt)
-            .await
-            .map_err(|e| AppError::Database(e))
+        Database::connect(opt).await.map_err(AppError::Database)
     }
 
     /// 创建 Redis 连接池

@@ -7,7 +7,7 @@ use super::section::ConfigSection;
 /// 敏感信息配置
 ///
 /// 包含应用的敏感信息，如密钥和令牌，应妥善保管。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct SecretsConfig {
     /// JWT 签名密钥（必需，至少 32 字符）
@@ -15,15 +15,6 @@ pub struct SecretsConfig {
 
     /// Redis 连接 URL（可选）
     pub redis_url: Option<String>,
-}
-
-impl Default for SecretsConfig {
-    fn default() -> Self {
-        Self {
-            jwt_secret: String::new(),
-            redis_url: None,
-        }
-    }
 }
 
 impl ConfigSection for SecretsConfig {

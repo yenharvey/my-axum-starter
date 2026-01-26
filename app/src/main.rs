@@ -133,7 +133,7 @@ async fn main() -> Result<(), AppError> {
 
     // 只在 debug 模式下添加 API 文档路由
     if config.logging.level == "debug" {
-        app = app.nest_api_service("/docs", docs_routes(&*app_state));
+        app = app.nest_api_service("/docs", docs_routes(&app_state));
     }
 
     // 配置 CORS
@@ -262,7 +262,7 @@ async fn favicon() -> impl IntoApiResponse {
     ([(CONTENT_TYPE, "image/x-icon")], favicon.as_ref())
 }
 
-/// robots.txt
+// // /// robots.txt
 // async fn robots_txt() -> impl IntoApiResponse {
 //     let robots = include_str!("../assets/robots.txt");
 //     ([(CONTENT_TYPE, "text/plain")], robots.as_bytes())

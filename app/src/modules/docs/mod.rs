@@ -3,13 +3,13 @@ use std::sync::Arc;
 use crate::AppState;
 use aide::{
     axum::{
-        routing::{get, get_with}, ApiRouter,
-        IntoApiResponse,
+        ApiRouter, IntoApiResponse,
+        routing::{get, get_with},
     },
     openapi::OpenApi,
     scalar::Scalar,
 };
-use axum::{response::IntoResponse, Extension, Json};
+use axum::{Extension, Json, response::IntoResponse};
 
 pub fn docs_routes(state: &AppState) -> ApiRouter {
     // We infer the return types for these routes

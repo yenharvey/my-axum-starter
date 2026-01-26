@@ -1,7 +1,7 @@
-use crate::{ApiResponse, AppError, AppState, shared::FromState, core::middleware::CurrentUser};
+use crate::{ApiResponse, AppError, AppState, core::middleware::CurrentUser, shared::FromState};
 use aide::transform::TransformOperation;
 use axum::Json;
-use axum::extract::{State, Extension};
+use axum::extract::{Extension, State};
 use std::sync::Arc;
 use tracing::{info, instrument};
 
@@ -25,7 +25,7 @@ pub async fn register(
 ) -> Result<ApiResponse<RegisterResponse>, AppError> {
     info!("处理用户注册请求: {}", req.username);
 
-    let user_service = UserService::from_state(&*state);
+    let user_service = UserService::from_state(&state);
     let response = user_service.register(req).await?;
 
     info!("用户注册成功: {}", response.username);
@@ -56,7 +56,7 @@ pub async fn login(
 ) -> Result<ApiResponse<LoginResponse>, AppError> {
     info!("处理用户登录请求: {}", req.username_or_email);
 
-    let user_service = UserService::from_state(&*state);
+    let user_service = UserService::from_state(&state);
     let response = user_service.login(req).await?;
 
     info!("用户登录成功: {}", response.username);
@@ -87,7 +87,7 @@ pub async fn me(
 ) -> Result<ApiResponse<RegisterResponse>, AppError> {
     info!("获取当前用户信息，用户ID: {}", current_user.user_id);
 
-    let user_service = UserService::from_state(&*state);
+    let user_service = UserService::from_state(&state);
     let response = user_service.get_user(current_user.user_id).await?;
 
     Ok(ApiResponse::success(response))

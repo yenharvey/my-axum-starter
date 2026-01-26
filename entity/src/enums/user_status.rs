@@ -21,6 +21,7 @@ use strum::{Display, EnumString};
     TryFromPrimitive,
     PartialEq,
     Eq,
+    Default,
 )]
 #[sea_orm(rs_type = "i16", db_type = "SmallInteger")]
 #[serde(rename_all = "snake_case")]
@@ -28,6 +29,7 @@ use strum::{Display, EnumString};
 #[repr(i16)]
 pub enum UserStatus {
     /// 激活状态
+    #[default]
     Active = 0,
 
     /// 停用状态
@@ -35,10 +37,4 @@ pub enum UserStatus {
 
     /// 删除状态
     Deleted = 2,
-}
-
-impl Default for UserStatus {
-    fn default() -> Self {
-        UserStatus::Active
-    }
 }

@@ -3,13 +3,13 @@
 //! 提供用户注册、登录、获取当前用户信息等功能。
 
 use crate::AppState;
-use aide::axum::routing::{get_with, post_with};
 use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with};
 use std::sync::Arc;
 use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 
-mod handler;
 pub mod dto;
+mod handler;
 mod service;
 
 /// 构建用户模块的路由
@@ -50,16 +50,14 @@ pub fn routes(state: Arc<AppState>) -> ApiRouter {
         )
         .api_route(
             "/login",
-            post_with(handler::login, handler::login_docs)
-                .layer(GovernorLayer::new(login_limiter)),
+            post_with(handler::login, handler::login_docs).layer(GovernorLayer::new(login_limiter)),
         )
         .api_route(
             "/me",
-            get_with(handler::me, handler::me_docs)
-                .layer(axum::middleware::from_fn_with_state(
-                    state.clone(),
-                    crate::core::middleware::auth::require_auth,
-                )),
+            get_with(handler::me, handler::me_docs).layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                crate::core::middleware::auth::require_auth,
+            )),
         )
         .with_state(state)
 }

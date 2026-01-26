@@ -1,7 +1,10 @@
-use crate::{core::config::LoggingConfig, error::{AppError, ValidationError}};
+use crate::{
+    core::config::LoggingConfig,
+    error::{AppError, ValidationError},
+};
 use std::fs;
 use tracing_appender::non_blocking;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// 初始化日志系统
 ///
@@ -16,13 +19,11 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 /// # 返回
 /// 成功初始化返回 Ok(())，失败返回 AppError
 pub fn init_tracing(config: &LoggingConfig) -> Result<(), AppError> {
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(&config.level));
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.level));
 
     if config.file {
-        fs::create_dir_all(&config.file_dir).map_err(|e| {
-            AppError::Io(e)
-        })?;
+        fs::create_dir_all(&config.file_dir).map_err(AppError::Io)?;
     }
 
     match (config.console, config.file) {
@@ -43,7 +44,7 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<(), AppError> {
                                 .with_ansi(true)
                                 .with_file(true)
                                 .with_line_number(true)
-                                .with_target(false)
+                                .with_target(false),
                         )
                         .with(
                             tracing_subscriber::fmt::layer()
@@ -52,7 +53,7 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<(), AppError> {
                                 .with_file(true)
                                 .with_line_number(true)
                                 .with_target(false)
-                                .with_ansi(false)
+                                .with_ansi(false),
                         )
                         .init();
                 }
@@ -63,10 +64,10 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<(), AppError> {
                             tracing_subscriber::fmt::layer()
                                 .compact()
                                 .with_writer(console_writer)
-                                .with_ansi(true) 
+                                .with_ansi(true)
                                 .with_file(true)
                                 .with_line_number(true)
-                                .with_target(false)
+                                .with_target(false),
                         )
                         .with(
                             tracing_subscriber::fmt::layer()
@@ -75,7 +76,7 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<(), AppError> {
                                 .with_file(true)
                                 .with_line_number(true)
                                 .with_target(false)
-                                .with_ansi(false)
+                                .with_ansi(false),
                         )
                         .init();
                 }
@@ -88,8 +89,7 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<(), AppError> {
             // 仅输出到控制台
             let (console_writer, _console_guard) = non_blocking(std::io::stdout());
 
-            let registry = tracing_subscriber::registry()
-                .with(env_filter);
+            let registry = tracing_subscriber::registry().with(env_filter);
 
             match config.console_format.as_str() {
                 "pretty" => {
@@ -101,7 +101,7 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<(), AppError> {
                                 .with_ansi(true)
                                 .with_file(true)
                                 .with_line_number(true)
-                                .with_target(false)
+                                .with_target(false),
                         )
                         .init();
                 }
@@ -114,7 +114,7 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<(), AppError> {
                                 .with_ansi(true)
                                 .with_file(true)
                                 .with_line_number(true)
-                                .with_target(false)
+                                .with_target(false),
                         )
                         .init();
                 }
@@ -126,8 +126,7 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<(), AppError> {
             // 仅输出到文件
             let (file_writer, _file_guard) = create_file_appender(config)?;
 
-            let registry = tracing_subscriber::registry()
-                .with(env_filter);
+            let registry = tracing_subscriber::registry().with(env_filter);
 
             registry
                 .with(
@@ -137,16 +136,16 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<(), AppError> {
                         .with_file(true)
                         .with_line_number(true)
                         .with_target(false)
-                        .with_ansi(false)
+                        .with_ansi(false),
                 )
                 .init();
 
             std::mem::forget(_file_guard);
         }
         (false, false) => {
-            return Err(AppError::Validation(
-                ValidationError::custom("至少需要启用控制台或文件日志输出"),
-            ));
+            return Err(AppError::Validation(ValidationError::custom(
+                "至少需要启用控制台或文件日志输出",
+            )));
         }
     }
 
@@ -168,7 +167,10 @@ pub fn init_tracing(config: &LoggingConfig) -> Result<(), AppError> {
             if config.cleanup_interval == 0 {
                 tracing::info!("日志清理: 启用（启动时清理）");
             } else {
-                tracing::info!("日志清理: 启用（每 {} 小时清理一次）", config.cleanup_interval);
+                tracing::info!(
+                    "日志清理: 启用（每 {} 小时清理一次）",
+                    config.cleanup_interval
+                );
             }
         } else {
             tracing::info!("日志清理: 禁用");
@@ -182,9 +184,9 @@ fn create_file_appender(
     config: &LoggingConfig,
 ) -> Result<(non_blocking::NonBlocking, non_blocking::WorkerGuard), AppError> {
     use tracing_appender::rolling::{RollingFileAppender, Rotation};
-    
+
     let file_prefix_with_env = config.get_file_prefix_with_env();
-    
+
     let rotation = match config.rotation.as_str() {
         "daily" => Rotation::DAILY,
         "hourly" => Rotation::HOURLY,
@@ -202,7 +204,7 @@ fn create_file_appender(
         .filename_prefix(&file_prefix_with_env)
         .filename_suffix("log")
         .build(&config.file_dir)
-        .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        .map_err(|e| AppError::Io(std::io::Error::other(e)))?;
 
     Ok(non_blocking(file_appender))
 }
