@@ -494,7 +494,7 @@ impl ApiResponse<()> {
     /// let response = ApiResponse::unauthorized(Reason::InvalidToken);
     /// ```ignore
     pub fn unauthorized(reason: Reason) -> Self {
-        Self::fail(StatusCode::UNAUTHORIZED, Domain::Auth, reason)
+        Self::fail(StatusCode::UNAUTHORIZED, Domain::AUTH, reason)
     }
 
     /// 403 Forbidden
@@ -505,7 +505,7 @@ impl ApiResponse<()> {
     /// let response = ApiResponse::forbidden(Reason::InsufficientPermissions);
     /// ```ignore
     pub fn forbidden(reason: Reason) -> Self {
-        Self::fail(StatusCode::FORBIDDEN, Domain::Auth, reason)
+        Self::fail(StatusCode::FORBIDDEN, Domain::AUTH, reason)
     }
 
     /// 404 Not Found
@@ -551,7 +551,7 @@ impl ApiResponse<()> {
     pub fn too_many_requests() -> Self {
         Self::fail(
             StatusCode::TOO_MANY_REQUESTS,
-            Domain::RateLimit,
+            Domain::RATE_LIMIT,
             Reason::RateLimitExceeded,
         )
     }

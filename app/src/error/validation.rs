@@ -45,16 +45,13 @@ impl ValidationError {
     pub fn custom(msg: impl Into<String>) -> Self {
         Self::Custom(msg.into())
     }
-
-    fn to_api_error(&self) -> ApiError {
-        ApiError::new(StatusCode::BAD_REQUEST, self.to_string()).with_detail(
-            ErrorDetail::with_message(Domain::Validation, Reason::InvalidFormat, self.to_string()),
-        )
-    }
 }
 
 impl IntoResponse for ValidationError {
     fn into_response(self) -> Response {
-        ApiResponse::error(self.to_api_error()).into_response()
+        let api_error = ApiError::new(StatusCode::BAD_REQUEST, self.to_string()).with_detail(
+            ErrorDetail::with_message(Domain::VALIDATION, Reason::InvalidFormat, self.to_string()),
+        );
+        ApiResponse::error(api_error).into_response()
     }
 }

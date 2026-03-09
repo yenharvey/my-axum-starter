@@ -36,46 +36,38 @@ pub enum AuthError {
     Internal(String),
 }
 
-impl AuthError {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            Self::UserAlreadyExists => StatusCode::CONFLICT,
-            Self::UserNotFound => StatusCode::NOT_FOUND,
-            Self::InvalidPassword => StatusCode::UNAUTHORIZED,
-            Self::InvalidUsername => StatusCode::BAD_REQUEST,
-            Self::PasswordTooShort => StatusCode::BAD_REQUEST,
-            Self::PasswordMismatch => StatusCode::BAD_REQUEST,
-            Self::UserInactive => StatusCode::FORBIDDEN,
-            Self::InvalidToken => StatusCode::UNAUTHORIZED,
-            Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-
-    fn reason(&self) -> Reason {
-        match self {
-            Self::UserAlreadyExists => Reason::UserAlreadyExists,
-            Self::UserNotFound => Reason::UserNotFound,
-            Self::InvalidPassword => Reason::InvalidPassword,
-            Self::InvalidUsername => Reason::InvalidUsername,
-            Self::PasswordTooShort => Reason::WeakPassword,
-            Self::PasswordMismatch => Reason::PasswordMismatch,
-            Self::UserInactive => Reason::UserInactive,
-            Self::InvalidToken => Reason::InvalidToken,
-            Self::Internal(_) => Reason::InternalError,
-        }
-    }
-
-    fn to_api_error(&self) -> ApiError {
-        ApiError::new(self.status_code(), self.to_string()).with_detail(ErrorDetail::with_message(
-            Domain::Auth,
-            self.reason(),
-            self.to_string(),
-        ))
-    }
-}
-
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
-        ApiResponse::error(self.to_api_error()).into_response()
+        let api_error = match self {
+            Self::UserAlreadyExists => ApiError::new(StatusCode::CONFLICT, self.to_string())
+                .with_detail(ErrorDetail::new(Domain::AUTH, Reason::AlreadyExists)),
+
+            Self::UserNotFound => ApiError::new(StatusCode::NOT_FOUND, self.to_string())
+                .with_detail(ErrorDetail::new(Domain::AUTH, Reason::UserNotFound)),
+
+            Self::InvalidPassword => ApiError::new(StatusCode::UNAUTHORIZED, self.to_string())
+                .with_detail(ErrorDetail::new(Domain::AUTH, Reason::InvalidPassword)),
+
+            Self::InvalidUsername => ApiError::new(StatusCode::BAD_REQUEST, self.to_string())
+                .with_detail(ErrorDetail::new(Domain::AUTH, Reason::InvalidUsername)),
+
+            Self::PasswordTooShort => ApiError::new(StatusCode::BAD_REQUEST, self.to_string())
+                .with_detail(ErrorDetail::new(Domain::AUTH, Reason::WeakPassword)),
+
+            Self::PasswordMismatch => ApiError::new(StatusCode::BAD_REQUEST, self.to_string())
+                .with_detail(ErrorDetail::new(Domain::AUTH, Reason::PasswordMismatch)),
+
+            Self::UserInactive => ApiError::new(StatusCode::FORBIDDEN, self.to_string())
+                .with_detail(ErrorDetail::new(Domain::AUTH, Reason::AuthenticationFailed)),
+
+            Self::InvalidToken => ApiError::new(StatusCode::UNAUTHORIZED, self.to_string())
+                .with_detail(ErrorDetail::new(Domain::AUTH, Reason::InvalidToken)),
+
+            Self::Internal(ref msg) => {
+                tracing::error!(error = %msg, "auth internal error");
+                ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
+            }
+        };
+        ApiResponse::error(api_error).into_response()
     }
 }

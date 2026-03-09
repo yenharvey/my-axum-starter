@@ -13,7 +13,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use thiserror::Error;
 
-use crate::response::{ApiError, ApiResponse, Domain, ErrorDetail, Reason};
+use crate::response::{ApiError, ApiResponse};
 
 pub use auth::AuthError;
 pub use config::ConfigError;
@@ -62,45 +62,40 @@ impl IntoResponse for AppError {
             Self::FileUpload(e) => e.into_response(),
             Self::Redis(e) => e.into_response(),
 
-            // 数据库错误
             Self::Database(e) => {
-                let error = ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "数据库错误")
-                    .with_detail(ErrorDetail::with_message(
-                        Domain::Database,
-                        Reason::QueryFailed,
-                        e.to_string(),
-                    ));
-                ApiResponse::error(error).into_response()
+                tracing::error!(error = %e, "database error");
+                ApiResponse::error(ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error",
+                ))
+                .into_response()
             }
 
-            // IO 错误
             Self::Io(e) => {
-                let error = ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "IO 错误")
-                    .with_detail(ErrorDetail::with_message(
-                        Domain::Global,
-                        Reason::InternalError,
-                        e.to_string(),
-                    ));
-                ApiResponse::error(error).into_response()
+                tracing::error!(error = %e, "io error");
+                ApiResponse::error(ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error",
+                ))
+                .into_response()
             }
 
-            // 序列化错误
             Self::Serde(e) => {
-                let error = ApiError::new(StatusCode::BAD_REQUEST, "数据格式错误").with_detail(
-                    ErrorDetail::with_message(Domain::Global, Reason::InvalidFormat, e.to_string()),
-                );
-                ApiResponse::error(error).into_response()
+                tracing::error!(error = %e, "serialization error");
+                ApiResponse::error(ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error",
+                ))
+                .into_response()
             }
 
-            // 通用错误
             Self::Anyhow(e) => {
-                let error = ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "内部错误")
-                    .with_detail(ErrorDetail::with_message(
-                        Domain::Global,
-                        Reason::InternalError,
-                        e.to_string(),
-                    ));
-                ApiResponse::error(error).into_response()
+                tracing::error!(error = %e, "internal error");
+                ApiResponse::error(ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error",
+                ))
+                .into_response()
             }
         }
     }

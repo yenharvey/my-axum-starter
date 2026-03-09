@@ -1,0 +1,11 @@
+# 开发环境配置（覆盖 default.toml 中的对应项）
+
+[server]
+port = 3001
+
+[logging]
+level = "debug"
+console_format = "pretty"
+
+[cors]
+allow_origins = ["*"]

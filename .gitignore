@@ -7,3 +7,5 @@
 logs
 
 .serena
+
+config/local.toml

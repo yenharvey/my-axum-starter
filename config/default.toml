@@ -1,0 +1,39 @@
+# 默认配置（所有环境共享的保守基准值）
+# 环境特定配置在 development.toml / production.toml 中覆盖
+
+[server]
+host = "0.0.0.0"
+port = 3000
+timeout = 300
+
+[database]
+# url 通过环境变量 DATABASE_URL 设置（必需）
+max_connections = 10
+pool_timeout = 30
+
+[logging]
+level = "info"
+console_format = "compact"
+console = true
+file = true
+file_dir = "./logs"
+file_prefix = "app"
+rotation = "daily"
+max_files = 30
+cleanup_enabled = true
+cleanup_interval = "7x24"
+
+[secrets]
+# JWT 密钥通过环境变量 JWT_SECRET 设置（必需，至少 32 字符）
+
+[redis]
+# Redis URL 通过环境变量 REDIS_URL 设置（可选）
+# 格式：redis://[:password]@host:port/db
+
+[cors]
+allow_origins = []
+allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"]
+allow_headers = ["Authorization", "Content-Type", "Accept", "X-Request-ID"]
+allow_credentials = false
+expose_headers = ["Content-Type", "X-Total-Count"]
+max_age = 3600

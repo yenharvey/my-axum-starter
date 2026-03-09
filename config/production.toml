@@ -1,0 +1,12 @@
+# 生产环境配置（覆盖 default.toml 中的对应项）
+# 敏感配置（DATABASE_URL、JWT_SECRET 等）必须通过环境变量设置，不要写在此文件中
+
+[logging]
+level = "info"
+console_format = "compact"
+file = true
+
+[cors]
+# 生产环境必须指定具体域名，禁止使用 "*"
+# allow_origins = ["https://your-domain.com"]
+allow_origins = []

@@ -24,38 +24,28 @@ pub enum FileUploadError {
     MissingField(String),
 }
 
-impl FileUploadError {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            Self::Multipart(_) => StatusCode::BAD_REQUEST,
-            Self::TooLarge(_) => StatusCode::PAYLOAD_TOO_LARGE,
-            Self::TypeNotAllowed(_) => StatusCode::UNSUPPORTED_MEDIA_TYPE,
-            Self::Failed(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            Self::MissingField(_) => StatusCode::BAD_REQUEST,
-        }
-    }
-
-    fn reason(&self) -> Reason {
-        match self {
-            Self::Multipart(_) => Reason::InvalidFormat,
-            Self::TooLarge(_) => Reason::FileTooLarge,
-            Self::TypeNotAllowed(_) => Reason::FileTypeNotAllowed,
-            Self::Failed(_) => Reason::UploadFailed,
-            Self::MissingField(_) => Reason::RequiredFieldMissing,
-        }
-    }
-
-    fn to_api_error(&self) -> ApiError {
-        ApiError::new(self.status_code(), self.to_string()).with_detail(ErrorDetail::with_message(
-            Domain::File,
-            self.reason(),
-            self.to_string(),
-        ))
-    }
-}
-
 impl IntoResponse for FileUploadError {
     fn into_response(self) -> Response {
-        ApiResponse::error(self.to_api_error()).into_response()
+        let api_error = match self {
+            Self::Multipart(_) => ApiError::new(StatusCode::BAD_REQUEST, self.to_string())
+                .with_detail(ErrorDetail::new(Domain::FILE, Reason::InvalidFormat)),
+
+            Self::TooLarge(_) => ApiError::new(StatusCode::PAYLOAD_TOO_LARGE, self.to_string())
+                .with_detail(ErrorDetail::new(Domain::FILE, Reason::FileTooLarge)),
+
+            Self::TypeNotAllowed(_) => {
+                ApiError::new(StatusCode::UNSUPPORTED_MEDIA_TYPE, self.to_string())
+                    .with_detail(ErrorDetail::new(Domain::FILE, Reason::FileTypeNotAllowed))
+            }
+
+            Self::Failed(ref msg) => {
+                tracing::error!(error = %msg, "file upload failed");
+                ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
+            }
+
+            Self::MissingField(_) => ApiError::new(StatusCode::BAD_REQUEST, self.to_string())
+                .with_detail(ErrorDetail::new(Domain::FILE, Reason::RequiredFieldMissing)),
+        };
+        ApiResponse::error(api_error).into_response()
     }
 }

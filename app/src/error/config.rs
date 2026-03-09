@@ -4,7 +4,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use thiserror::Error;
 
-use crate::response::{ApiError, ApiResponse, Domain, ErrorDetail, Reason};
+use crate::response::{ApiError, ApiResponse};
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
@@ -21,26 +21,14 @@ pub enum ConfigError {
     Parse(String),
 }
 
-impl ConfigError {
-    fn reason(&self) -> Reason {
-        match self {
-            Self::MissingVar(_) => Reason::MissingEnvVar,
-            Self::InvalidValue { .. } => Reason::InvalidConfig,
-            Self::Invalid(_) => Reason::InvalidConfig,
-            Self::Parse(_) => Reason::InvalidConfig,
-        }
-    }
-
-    fn to_api_error(&self) -> ApiError {
-        ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, self.to_string()).with_detail(
-            ErrorDetail::with_message(Domain::Config, self.reason(), self.to_string()),
-        )
-    }
-}
-
 impl IntoResponse for ConfigError {
     fn into_response(self) -> Response {
-        ApiResponse::error(self.to_api_error()).into_response()
+        tracing::error!(error = %self, "config error");
+        ApiResponse::error(ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error",
+        ))
+        .into_response()
     }
 }
 

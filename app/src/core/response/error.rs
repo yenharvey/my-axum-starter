@@ -33,9 +33,9 @@ impl ErrorDetail {
     /// 从枚举创建
     pub fn new(domain: Domain, reason: Reason) -> Self {
         Self {
-            domain: domain.as_str().to_string(),
-            reason: reason.as_str().to_string(),
-            message: reason.default_message().to_string(),
+            domain: domain.to_string(),
+            reason: reason.to_string(),
+            message: reason.to_string(),
             location: None,
             location_type: None,
         }
@@ -44,8 +44,8 @@ impl ErrorDetail {
     /// 从枚举创建，带自定义消息
     pub fn with_message(domain: Domain, reason: Reason, message: impl Into<String>) -> Self {
         Self {
-            domain: domain.as_str().to_string(),
-            reason: reason.as_str().to_string(),
+            domain: domain.to_string(),
+            reason: reason.to_string(),
             message: message.into(),
             location: None,
             location_type: None,
@@ -90,7 +90,7 @@ impl ApiError {
     pub fn from_reason(status: StatusCode, domain: Domain, reason: Reason) -> Self {
         Self {
             code: status.as_u16(),
-            message: reason.default_message().to_string(),
+            message: reason.to_string(),
             errors: vec![ErrorDetail::new(domain, reason)],
         }
     }
@@ -119,30 +119,14 @@ impl ApiError {
     }
 
     pub fn unauthorized(reason: Reason) -> Self {
-        Self::from_reason(StatusCode::UNAUTHORIZED, Domain::Auth, reason)
+        Self::from_reason(StatusCode::UNAUTHORIZED, Domain::AUTH, reason)
     }
 
     pub fn forbidden(reason: Reason) -> Self {
-        Self::from_reason(StatusCode::FORBIDDEN, Domain::Auth, reason)
-    }
-
-    pub fn not_found(domain: Domain, reason: Reason) -> Self {
-        Self::from_reason(StatusCode::NOT_FOUND, domain, reason)
-    }
-
-    pub fn conflict(domain: Domain, reason: Reason) -> Self {
-        Self::from_reason(StatusCode::CONFLICT, domain, reason)
+        Self::from_reason(StatusCode::FORBIDDEN, Domain::AUTH, reason)
     }
 
     pub fn too_many_requests(reason: Reason) -> Self {
-        Self::from_reason(StatusCode::TOO_MANY_REQUESTS, Domain::RateLimit, reason)
-    }
-
-    pub fn internal(domain: Domain, reason: Reason) -> Self {
-        Self::from_reason(StatusCode::INTERNAL_SERVER_ERROR, domain, reason)
-    }
-
-    pub fn unavailable(domain: Domain, reason: Reason) -> Self {
-        Self::from_reason(StatusCode::SERVICE_UNAVAILABLE, domain, reason)
+        Self::from_reason(StatusCode::TOO_MANY_REQUESTS, Domain::RATE_LIMIT, reason)
     }
 }

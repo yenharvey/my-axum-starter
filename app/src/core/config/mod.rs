@@ -17,7 +17,6 @@ pub use server::ServerConfig;
 use crate::error::ConfigError;
 use config::{Config, Environment, File};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 /// 应用程序配置入口
 ///
@@ -52,27 +51,27 @@ impl AppConfig {
     /// # 优先级顺序（从低到高）
     ///
     /// 1. 代码中的默认值
-    /// 2. 配置文件（config.toml 或 config/default.toml）
-    /// 3. 环境变量（APP_* 前缀）
-    /// 4. 敏感信息环境变量（DATABASE_URL、JWT_SECRET 等，最高优先级）
+    /// 2. `config/default.toml` — 所有环境共享的基准配置
+    /// 3. `config/{APP_ENV}.toml` — 当前环境专属配置（默认 `development`）
+    /// 4. `config/local.toml` — 个人本地覆盖（gitignored，不进版本库）
+    /// 5. `APP_*` 环境变量
+    /// 6. 敏感信息环境变量（`DATABASE_URL`、`JWT_SECRET` 等，最高优先级）
     ///
-    /// # 返回值
+    /// # 环境选择
     ///
-    /// 成功返回配置对象，失败返回配置错误
+    /// 通过 `APP_ENV` 环境变量指定，默认为 `development`。
+    /// 例如：`APP_ENV=production cargo run`
     pub fn load() -> Result<Self, ConfigError> {
-        // 加载 .env 文件（如果存在）
         dotenvy::dotenv().ok();
 
-        // 确定配置文件路径
-        let config_path = if PathBuf::from("config.toml").exists() {
-            "config.toml"
-        } else {
-            "config/default.toml"
-        };
+        // 读取当前环境（默认 development）
+        let env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
 
-        // 构建配置源
+        // 构建配置源（优先级从低到高）
         let builder = Config::builder()
-            .add_source(File::with_name(config_path).required(false))
+            .add_source(File::with_name("config/default").required(false))
+            .add_source(File::with_name(&format!("config/{env}")).required(false))
+            .add_source(File::with_name("config/local").required(false))
             .add_source(
                 Environment::with_prefix("APP_")
                     .try_parsing(true)
