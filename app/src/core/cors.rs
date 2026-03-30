@@ -59,25 +59,34 @@ pub fn build_cors_layer(cors_config: &CorsConfig) -> Result<CorsLayer, ConfigErr
     if cors_config.allow_origins.contains(&"*".to_string()) {
         cors = cors.allow_origin(Any);
     } else {
-        for origin_str in &cors_config.allow_origins {
-            if let Ok(origin) = origin_str.parse::<HeaderValue>() {
-                cors = cors.allow_origin(origin);
-            }
+        let origins: Vec<HeaderValue> = cors_config
+            .allow_origins
+            .iter()
+            .filter_map(|origin| origin.parse::<HeaderValue>().ok())
+            .collect();
+        if !origins.is_empty() {
+            cors = cors.allow_origin(origins);
         }
     }
 
     // 处理允许的请求头
-    for header_str in &cors_config.allow_headers {
-        if let Ok(header_name) = header_str.parse::<HeaderName>() {
-            cors = cors.allow_headers([header_name]);
-        }
+    let allow_headers: Vec<HeaderName> = cors_config
+        .allow_headers
+        .iter()
+        .filter_map(|header| header.parse::<HeaderName>().ok())
+        .collect();
+    if !allow_headers.is_empty() {
+        cors = cors.allow_headers(allow_headers);
     }
 
     // 处理暴露的响应头
-    for header_str in &cors_config.expose_headers {
-        if let Ok(header_name) = header_str.parse::<HeaderName>() {
-            cors = cors.expose_headers([header_name]);
-        }
+    let expose_headers: Vec<HeaderName> = cors_config
+        .expose_headers
+        .iter()
+        .filter_map(|header| header.parse::<HeaderName>().ok())
+        .collect();
+    if !expose_headers.is_empty() {
+        cors = cors.expose_headers(expose_headers);
     }
 
     // 设置凭证和缓存时间

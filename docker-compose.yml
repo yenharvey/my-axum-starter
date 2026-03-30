@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime-app
+    container_name: my-axum-starter
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RUN_ENV: production
+    ports:
+      - "${APP_SERVER_PORT:-3000}:3000"
+    volumes:
+      - app_logs:/app/logs
+      - ./config:/app/config:ro
+      - ./app/assets:/app/app/assets:ro
+
+volumes:
+  app_logs:
