@@ -9,8 +9,9 @@
 - **限流控制**: tower_governor IP限流（全局10req/s，认证端2req/s）
 - **配置管理**: 分层 TOML 配置 + `APP_<SECTION>_<KEY>` 环境变量覆盖，启动时校验
 - **错误处理**: 统一的错误处理，HTTP状态码+错误原因映射
+- **请求校验**: `ApiJson` 提取器自动执行 `validator` 规则，按字段返回错误
 - **API响应**: 遵循 Google JSON Style Guide 标准，支持分页、资源元数据
-- **分页**: 统一的 `page` / `page_size` 查询参数与校验，附用户列表示例接口
+- **分页**: 页码分页（`page` / `page_size`）与游标分页（`limit` / `cursor`）两种提取器，附用户列表示例接口
 - **数据库引导**: 可选的自动建库与演示种子数据
 - **文档生成**: OpenAPI 文档（`server.enable_docs` 开关，开发环境默认开启）
 - **中间件栈**: 日志追踪、CORS、压缩、请求ID、请求超时等
@@ -33,9 +34,10 @@
 │   │   ├── shared/               # 跨业务模块共享
 │   │   │   ├── error/            # 错误类型（统一转换为 API 响应）
 │   │   │   ├── response/         # API 响应格式（Google JSON Style Guide）
+│   │   │   ├── json.rs           # ApiJson：带校验的 JSON 请求体提取器
 │   │   │   ├── jwt.rs            # JWT 服务
 │   │   │   ├── password.rs       # 密码哈希（Argon2）
-│   │   │   ├── pagination.rs     # 分页查询参数
+│   │   │   ├── pagination/       # 页码分页与游标分页
 │   │   │   └── from_state.rs     # 从应用状态构造服务
 │   │   ├── modules/              # 业务模块（每个业务域一个目录）
 │   │   │   └── user/
@@ -241,7 +243,18 @@ curl "http://127.0.0.1:3001/v1/user?page=1&page_size=20" \\
   -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 ```
 
-`page` 从 1 开始（默认 1），`page_size` 取值 1-100（默认 20）。
+`page` 从 1 开始（默认 1），`page_size` 取值 1-100（默认 20）。响应里带 `total_items`、`total_pages`，适合后台表格。
+
+游标分页版本适合无限滚动和大表（翻到多深都一样快，翻页期间有新数据也不会重复或遗漏）：
+
+```bash
+curl "http://127.0.0.1:3001/v1/user/cursor?limit=20" \\
+  -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+```
+
+把响应里的 `next_cursor` 作为下一次请求的 `cursor` 参数即可取下一页；响应里没有 `next_cursor` 表示已经到底。
+
+两种分页都是提取器，在处理器参数里写 `pagination: Pagination` 或 `pagination: CursorPagination` 即可，用法见 [`shared/pagination`](app/src/shared/pagination/mod.rs)。
 
 ### 5. 健康检查
 

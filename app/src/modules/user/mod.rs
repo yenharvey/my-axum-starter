@@ -21,7 +21,8 @@ const AUTH_RATE_LIMIT_BURST: u32 = 3;
 
 /// 构建用户模块的路由
 ///
-/// - `GET /` - 分页获取用户列表（需要认证）
+/// - `GET /` - 页码分页获取用户列表（需要认证）
+/// - `GET /cursor` - 游标分页获取用户列表（需要认证）
 /// - `POST /register` - 用户注册（严格限流）
 /// - `POST /login` - 用户登录（严格限流）
 /// - `GET /me` - 获取当前用户信息（需要认证）
@@ -35,6 +36,14 @@ pub fn routes(state: Arc<AppState>) -> ApiRouter {
         .api_route(
             "/",
             get_with(handler::list_users, handler::list_users_docs).layer(auth()),
+        )
+        .api_route(
+            "/cursor",
+            get_with(
+                handler::list_users_by_cursor,
+                handler::list_users_by_cursor_docs,
+            )
+            .layer(auth()),
         )
         .api_route(
             "/register",

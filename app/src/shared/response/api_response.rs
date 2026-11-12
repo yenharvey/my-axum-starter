@@ -13,6 +13,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::{ApiError, Domain, ErrorDetail, Reason};
+use crate::shared::pagination::{CursorPage, Pagination};
 
 /// API 版本号
 pub const API_VERSION: &str = "1.0";
@@ -144,6 +145,10 @@ pub struct ListData<T: Serialize> {
     /// 当前页链接
     #[serde(skip_serializing_if = "Option::is_none")]
     pub self_link: Option<String>,
+
+    /// 下一页的游标（仅游标分页；没有下一页时省略）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_cursor: Option<String>,
 }
 
 impl<T: Serialize> ApiResponse<T> {
@@ -222,10 +227,54 @@ impl<T: Serialize> ApiResponse<T> {
                     next_link: None,
                     previous_link: None,
                     self_link: None,
+                    next_cursor: None,
                 })),
             }),
             error: None,
         }
+    }
+
+    /// 创建页码分页响应
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let (items, total) = service.list_users(pagination).await?;
+    /// let response = ApiResponse::page(items, total, pagination).with_kind("UserList");
+    /// ```
+    pub fn page(items: Vec<T>, total: u64, pagination: Pagination) -> Self {
+        // 行数与分页参数远小于 i64 的上限，超出时饱和
+        let to_i64 = |value: u64| i64::try_from(value).unwrap_or(i64::MAX);
+
+        Self::list(
+            items,
+            to_i64(total),
+            to_i64(pagination.page),
+            to_i64(pagination.page_size),
+        )
+    }
+
+    /// 创建游标分页响应
+    ///
+    /// 响应里只有 `items`、`current_item_count` 和 `next_cursor`；
+    /// 游标分页不统计总数。
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let page = service.list_users_by_cursor(&pagination).await?;
+    /// let response = ApiResponse::cursor_page(page).with_kind("UserList");
+    /// ```
+    pub fn cursor_page(page: CursorPage<T>) -> Self {
+        let mut response = Self::simple_list(page.items);
+        if let Some(DataWrapper {
+            content: DataContent::List(list),
+            ..
+        }) = response.data.as_mut()
+        {
+            list.next_cursor = page.next_cursor;
+        }
+        response
     }
 
     /// 创建简单列表响应（无分页信息）
@@ -261,6 +310,7 @@ impl<T: Serialize> ApiResponse<T> {
                     next_link: None,
                     previous_link: None,
                     self_link: None,
+                    next_cursor: None,
                 })),
             }),
             error: None,

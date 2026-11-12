@@ -1,7 +1,10 @@
-//! 列表接口的分页查询参数
-//!
-//! 这不是中间件：它不拦截请求链路，而是处理器使用的 HTTP 查询参数约定。
+//! 页码分页：`?page=1&page_size=20`
 
+use aide::OperationInput;
+use aide::generate::GenContext;
+use aide::openapi::Operation;
+use axum::extract::{FromRequestParts, Query};
+use axum::http::request::Parts;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -63,4 +66,22 @@ pub struct PaginationQuery {
     pub page: Option<u64>,
     /// 每页数据量；未传时使用 `DEFAULT_PAGE_SIZE`。
     pub page_size: Option<u64>,
+}
+
+impl<S: Send + Sync> FromRequestParts<S> for Pagination {
+    type Rejection = ValidationError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let Query(query) = Query::<PaginationQuery>::from_request_parts(parts, state)
+            .await
+            .map_err(|rejection| ValidationError::custom(rejection.body_text()))?;
+
+        Self::from_query(&query)
+    }
+}
+
+impl OperationInput for Pagination {
+    fn operation_input(ctx: &mut GenContext, operation: &mut Operation) {
+        Query::<PaginationQuery>::operation_input(ctx, operation);
+    }
 }

@@ -18,18 +18,6 @@ pub enum AuthError {
     #[error("用户名或密码错误")]
     InvalidCredentials,
 
-    #[error("用户名长度必须在 3-20 个字符之间")]
-    InvalidUsername,
-
-    #[error("邮箱格式无效")]
-    InvalidEmail,
-
-    #[error("密码长度至少8个字符")]
-    PasswordTooShort,
-
-    #[error("两次输入的密码不一致")]
-    PasswordMismatch,
-
     #[error("用户已被停用")]
     UserInactive,
 
@@ -49,10 +37,6 @@ impl AuthError {
             Self::InvalidCredentials => {
                 (StatusCode::UNAUTHORIZED, Some(Reason::AuthenticationFailed))
             }
-            Self::InvalidUsername => (StatusCode::BAD_REQUEST, Some(Reason::InvalidUsername)),
-            Self::InvalidEmail => (StatusCode::BAD_REQUEST, Some(Reason::InvalidEmail)),
-            Self::PasswordTooShort => (StatusCode::BAD_REQUEST, Some(Reason::WeakPassword)),
-            Self::PasswordMismatch => (StatusCode::BAD_REQUEST, Some(Reason::PasswordMismatch)),
             Self::UserInactive => (StatusCode::FORBIDDEN, Some(Reason::PermissionDenied)),
             Self::InvalidToken => (StatusCode::UNAUTHORIZED, Some(Reason::InvalidToken)),
             Self::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, None),

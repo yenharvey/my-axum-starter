@@ -159,9 +159,147 @@ mod tests {
             StatusCode::BAD_REQUEST
         );
         assert_eq!(
-            status_of(router, "/v1/user?page_size=101", Some(&token)).await,
+            status_of(router.clone(), "/v1/user?page_size=101", Some(&token)).await,
             StatusCode::BAD_REQUEST
         );
+
+        // 参数类型不对时也返回统一格式的 JSON 错误，而不是 axum 默认的纯文本
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/user?page=abc")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"]["code"], 400);
+    }
+
+    #[tokio::test]
+    async fn cursor_user_list_requires_auth_and_validates_params() {
+        let state = test_state();
+        let token = state.jwt_service.generate_token(1).unwrap();
+        let router = router(state, false);
+
+        assert_eq!(
+            status_of(router.clone(), "/v1/user/cursor", None).await,
+            StatusCode::UNAUTHORIZED
+        );
+        // 参数和游标都在查询数据库之前校验
+        for uri in [
+            "/v1/user/cursor?limit=0",
+            "/v1/user/cursor?limit=101",
+            "/v1/user/cursor?cursor=not-a-cursor!",
+        ] {
+            assert_eq!(
+                status_of(router.clone(), uri, Some(&token)).await,
+                StatusCode::BAD_REQUEST,
+                "{uri}"
+            );
+        }
+    }
+
+    /// 向注册接口发送请求体，返回状态码和响应 JSON
+    async fn post_register(
+        content_type: Option<&str>,
+        body: &str,
+    ) -> (StatusCode, serde_json::Value) {
+        use axum::extract::ConnectInfo;
+        use std::net::SocketAddr;
+
+        let peer = ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 12345)));
+        let mut request = Request::builder().method("POST").uri("/v1/user/register");
+        if let Some(content_type) = content_type {
+            request = request.header("content-type", content_type);
+        }
+
+        let response = router(test_state(), false)
+            .layer(Extension(peer))
+            .oneshot(request.body(Body::from(body.to_string())).unwrap())
+            .await
+            .unwrap();
+
+        let status = response.status();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        (status, serde_json::from_slice(&body).unwrap())
+    }
+
+    #[tokio::test]
+    async fn malformed_request_bodies_get_json_errors() {
+        // 不是合法 JSON
+        let (status, json) = post_register(Some("application/json"), "{not json").await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(json["error"]["code"], 400);
+
+        // 缺少字段
+        let (status, json) = post_register(Some("application/json"), r#"{"username":"abc"}"#).await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(json["error"]["code"], 422);
+
+        // 缺少 Content-Type
+        let (status, json) = post_register(None, "{}").await;
+        assert_eq!(status, StatusCode::UNSUPPORTED_MEDIA_TYPE);
+        assert_eq!(json["error"]["code"], 415);
+    }
+
+    #[tokio::test]
+    async fn invalid_fields_are_reported_per_field() {
+        let body = r#"{
+            "username": "ab",
+            "email": "not-an-email",
+            "password": "short",
+            "password_confirm": "different"
+        }"#;
+        let (status, json) = post_register(Some("application/json"), body).await;
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        let errors: Vec<(&str, &str)> = json["error"]["errors"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|error| {
+                (
+                    error["location"].as_str().unwrap(),
+                    error["reason"].as_str().unwrap(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            errors,
+            vec![
+                ("email", "INVALID_EMAIL"),
+                ("password", "INVALID_LENGTH"),
+                ("password_confirm", "PASSWORD_MISMATCH"),
+                ("username", "INVALID_LENGTH"),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn username_length_counts_characters() {
+        // 三个汉字是 9 个字节，按字符数应通过长度校验；
+        // 邮箱故意写错，让请求在访问数据库之前返回
+        let body = r#"{
+            "username": "张三丰",
+            "email": "not-an-email",
+            "password": "password123",
+            "password_confirm": "password123"
+        }"#;
+        let (status, json) = post_register(Some("application/json"), body).await;
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        let errors = json["error"]["errors"].as_array().unwrap();
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0]["location"], "email");
     }
 
     #[tokio::test]

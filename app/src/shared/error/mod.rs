@@ -19,7 +19,7 @@ pub use auth::AuthError;
 pub use config::ConfigError;
 pub use file_upload::FileUploadError;
 pub use redis::RedisError;
-pub use validation::ValidationError;
+pub use validation::{FieldError, ValidationError};
 
 /// 应用程序错误
 #[derive(Debug, Error)]

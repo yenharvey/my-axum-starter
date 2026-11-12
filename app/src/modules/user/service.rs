@@ -1,23 +1,17 @@
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait,
-    PaginatorTrait, QueryFilter, QueryOrder, Set, SqlErr,
+    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set, SqlErr,
 };
 use tracing::instrument;
-use validator::ValidateEmail;
 
-use crate::AppState;
 use crate::shared::error::AuthError;
-use crate::shared::pagination::Pagination;
+use crate::shared::pagination::{CursorPage, CursorPagination, Pagination};
 use crate::shared::{FromState, jwt::JwtService, password};
+use crate::{AppError, AppState};
 use entity::enums::UserStatus;
 use entity::user;
 
 use super::dto::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserListItem};
-
-/// 用户名长度范围（按字符计）
-const USERNAME_LEN: std::ops::RangeInclusive<usize> = 3..=20;
-/// 密码最小长度
-const MIN_PASSWORD_LEN: usize = 8;
 
 /// 用户服务
 ///
@@ -57,27 +51,36 @@ impl UserService {
         Ok((rows.into_iter().map(UserListItem::from).collect(), total))
     }
 
-    /// 用户注册
+    /// 游标分页查询用户列表，按 ID 倒序。
     ///
-    /// 1. 校验用户名、邮箱、密码
-    /// 2. 检查用户名和邮箱是否已被注册
-    /// 3. 使用 Argon2 哈希密码并创建用户
-    #[instrument(skip_all, fields(username = %req.username))]
-    pub async fn register(&self, req: RegisterRequest) -> Result<RegisterResponse, AuthError> {
-        // 按字符数（而非字节数）计算长度，否则中文等多字节用户名会被误判
-        if !USERNAME_LEN.contains(&req.username.chars().count()) {
-            return Err(AuthError::InvalidUsername);
-        }
-        if !req.email.validate_email() {
-            return Err(AuthError::InvalidEmail);
-        }
-        if req.password.chars().count() < MIN_PASSWORD_LEN {
-            return Err(AuthError::PasswordTooShort);
-        }
-        if req.password != req.password_confirm {
-            return Err(AuthError::PasswordMismatch);
+    /// ID 是自增主键，倒序即“最新注册的在前”，同时满足游标键必须唯一的要求。
+    #[instrument(skip(self))]
+    pub async fn list_users_by_cursor(
+        &self,
+        pagination: &CursorPagination,
+    ) -> Result<CursorPage<UserListItem>, AppError> {
+        let mut query = user::Entity::find()
+            .order_by_desc(user::Column::Id)
+            .limit(pagination.fetch_limit());
+        if let Some(after) = pagination.after::<i32>()? {
+            query = query.filter(user::Column::Id.lt(after));
         }
 
+        let rows = query.all(&self.db).await.map_err(db_error)?;
+
+        Ok(pagination
+            .into_page(rows, |row| row.id)
+            .map(UserListItem::from))
+    }
+
+    /// 用户注册
+    ///
+    /// 1. 检查用户名和邮箱是否已被注册
+    /// 2. 使用 Argon2 哈希密码并创建用户
+    ///
+    /// 字段格式（长度、邮箱、两次密码一致）由 [`RegisterRequest`] 上的校验规则保证。
+    #[instrument(skip_all, fields(username = %req.username))]
+    pub async fn register(&self, req: RegisterRequest) -> Result<RegisterResponse, AuthError> {
         let existing = user::Entity::find()
             .filter(
                 Condition::any()

@@ -166,6 +166,7 @@ dependencies = [
  "argon2",
  "askama",
  "axum",
+ "base64 0.23.1",
  "chrono",
  "config",
  "deadpool-redis",
