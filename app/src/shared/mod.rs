@@ -3,12 +3,14 @@
 //! - [`error`]：统一错误类型
 //! - [`response`]：统一 API 响应格式
 //! - [`jwt`]：JWT 令牌生成和验证
+//! - [`pagination`]：列表接口的分页查询参数
 //! - [`password`]：密码哈希和验证（Argon2）
 //! - [`FromState`]：从应用状态构造服务的 Trait
 
 pub mod error;
 mod from_state;
 pub mod jwt;
+pub mod pagination;
 pub mod password;
 pub mod response;
 

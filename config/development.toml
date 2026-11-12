@@ -4,6 +4,9 @@
 port = 3001
 enable_docs = true
 
+[database]
+auto_create = true
+
 [logging]
 level = "debug"
 console_format = "pretty"

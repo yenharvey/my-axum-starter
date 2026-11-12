@@ -22,6 +22,11 @@ enable_docs = false
 max_connections = 10
 # 建立连接 / 从连接池获取连接的超时时间（秒）
 connect_timeout_secs = 30
+# 启动时目标数据库不存在则自动创建（仅 PostgreSQL）。
+# 需要当前账号能连接 postgres 管理库并拥有 CREATEDB 权限，托管数据库通常不满足。
+auto_create = false
+# 启动时创建演示用户 demo / demo-password。密码是公开的，不要在生产环境开启。
+seed_demo = false
 
 [redis]
 # url 可选：通过 REDIS_URL 环境变量提供，不配置则不启用 Redis

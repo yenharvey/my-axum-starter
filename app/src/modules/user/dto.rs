@@ -1,5 +1,34 @@
+use entity::enums::UserStatus;
+use entity::user;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+/// 用户列表项
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct UserListItem {
+    /// 用户ID
+    pub id: i32,
+
+    /// 用户名
+    pub username: String,
+
+    /// 邮箱
+    pub email: String,
+
+    /// 用户状态
+    pub status: UserStatus,
+}
+
+impl From<user::Model> for UserListItem {
+    fn from(model: user::Model) -> Self {
+        Self {
+            id: model.id,
+            username: model.username,
+            email: model.email,
+            status: model.status,
+        }
+    }
+}
 
 /// 用户注册请求
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

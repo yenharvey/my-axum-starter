@@ -41,6 +41,7 @@ dotenvy = "0.15.7"
 anyhow = "1.0.104"
 tracing-appender = "0.2.5"
 config = "0.15.27"
+url = "2.5.8"
 deadpool-redis = { version = "0.23.1", features = ["rt_tokio_1", "serde"] }
 tower_governor = { version = "0.8.0", features = ["tracing"] }
 # 与 tower_governor 依赖的版本保持一致（仅用于限流层的类型签名）

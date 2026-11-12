@@ -1,17 +1,18 @@
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, QueryFilter,
-    Set, SqlErr,
+    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait,
+    PaginatorTrait, QueryFilter, QueryOrder, Set, SqlErr,
 };
 use tracing::instrument;
 use validator::ValidateEmail;
 
 use crate::AppState;
 use crate::shared::error::AuthError;
+use crate::shared::pagination::Pagination;
 use crate::shared::{FromState, jwt::JwtService, password};
 use entity::enums::UserStatus;
 use entity::user;
 
-use super::dto::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse};
+use super::dto::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserListItem};
 
 /// 用户名长度范围（按字符计）
 const USERNAME_LEN: std::ops::RangeInclusive<usize> = 3..=20;
@@ -36,6 +37,26 @@ impl FromState for UserService {
 }
 
 impl UserService {
+    /// 分页查询用户列表，按创建时间倒序。返回当前页的数据和总行数。
+    #[instrument(skip(self))]
+    pub async fn list_users(
+        &self,
+        pagination: Pagination,
+    ) -> Result<(Vec<UserListItem>, u64), AuthError> {
+        let paginator = user::Entity::find()
+            .order_by_desc(user::Column::CreatedAt)
+            // 创建时间相同时用主键保证翻页顺序稳定
+            .order_by_desc(user::Column::Id)
+            .paginate(&self.db, pagination.page_size);
+        let total = paginator.num_items().await.map_err(db_error)?;
+        let rows = paginator
+            .fetch_page(pagination.zero_based_page())
+            .await
+            .map_err(db_error)?;
+
+        Ok((rows.into_iter().map(UserListItem::from).collect(), total))
+    }
+
     /// 用户注册
     ///
     /// 1. 校验用户名、邮箱、密码

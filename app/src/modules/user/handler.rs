@@ -1,14 +1,56 @@
 use crate::infra::middleware::CurrentUser;
 use crate::shared::FromState;
+use crate::shared::pagination::{Pagination, PaginationQuery};
 use crate::{ApiResponse, AppError, AppState};
 use aide::transform::TransformOperation;
 use axum::Json;
-use axum::extract::{Extension, State};
+use axum::extract::{Extension, Query, State};
 use std::sync::Arc;
 use tracing::{info, instrument};
 
-use super::dto::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse};
+use super::dto::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserListItem};
 use super::service::UserService;
+
+/// 获取用户列表处理器
+///
+/// 按创建时间倒序返回用户列表，支持 `page` 和 `page_size` 查询参数。
+///
+/// # 参数
+/// * `state` - 应用状态（包含数据库连接）
+/// * `query` - 分页查询参数（page、page_size）
+///
+/// # 返回
+/// 成功返回带分页元数据的用户列表，失败返回错误
+#[instrument(skip(state))]
+pub async fn list_users(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<PaginationQuery>,
+) -> Result<ApiResponse<UserListItem>, AppError> {
+    let pagination = Pagination::from_query(&query)?;
+    info!(
+        "获取用户列表，page={}, page_size={}",
+        pagination.page, pagination.page_size
+    );
+
+    let user_service = UserService::from_state(&state);
+    let (items, total) = user_service.list_users(pagination).await?;
+
+    // page 与 page_size 已校验在 1..=100 之内；total 是行数，超出 i64 时饱和
+    Ok(ApiResponse::list(
+        items,
+        i64::try_from(total).unwrap_or(i64::MAX),
+        i64::try_from(pagination.page).unwrap_or(i64::MAX),
+        i64::try_from(pagination.page_size).unwrap_or(i64::MAX),
+    )
+    .with_kind("UserList"))
+}
+
+/// 获取用户列表 API 文档
+pub fn list_users_docs(op: TransformOperation) -> TransformOperation {
+    op.description("分页获取用户列表")
+        .tag("用户")
+        .response::<200, ApiResponse<UserListItem>>()
+}
 
 /// 用户注册处理器
 ///

@@ -19,6 +19,7 @@ use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{Level, error, info};
 
+use crate::infra::bootstrap::{ensure_database_exists, seed_demo_data};
 use crate::infra::middleware::{build_cors_layer, rate_limit_layer, request_id_middleware};
 use crate::{AppConfig, AppError, AppState, routes};
 
@@ -31,11 +32,19 @@ const RATE_LIMIT_BURST: u32 = 20;
 pub async fn run(config: AppConfig) -> Result<(), AppError> {
     info!("🚀 应用启动");
 
+    if config.database.auto_create {
+        ensure_database_exists(&config.database.url).await?;
+    }
+
     // 初始化应用状态（包含数据库连接、Redis 连接池等）
     let state = Arc::new(AppState::init(&config).await?);
 
     // 复用应用连接池执行自动迁移（避免额外建立一个不会被释放的连接池）
     Migrator::up(&state.db, None).await?;
+
+    if config.database.seed_demo {
+        seed_demo_data(&state.db).await?;
+    }
 
     let app = build_app(&config, state)?;
 

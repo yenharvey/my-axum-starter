@@ -144,6 +144,27 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn user_list_requires_auth_and_validates_pagination() {
+        let state = test_state();
+        let token = state.jwt_service.generate_token(1).unwrap();
+        let router = router(state, false);
+
+        assert_eq!(
+            status_of(router.clone(), "/v1/user", None).await,
+            StatusCode::UNAUTHORIZED
+        );
+        // 分页参数在查询数据库之前校验
+        assert_eq!(
+            status_of(router.clone(), "/v1/user?page=0", Some(&token)).await,
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            status_of(router, "/v1/user?page_size=101", Some(&token)).await,
+            StatusCode::BAD_REQUEST
+        );
+    }
+
+    #[tokio::test]
     async fn me_requires_a_valid_token() {
         let router = router(test_state(), false);
 

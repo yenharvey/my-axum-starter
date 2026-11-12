@@ -14,6 +14,14 @@ pub struct DatabaseConfig {
 
     /// 建立连接 / 从连接池获取连接的超时时间（秒）
     pub connect_timeout_secs: u64,
+
+    /// 启动时目标数据库不存在则自动创建（仅 PostgreSQL）
+    ///
+    /// 需要当前账号能连接 `postgres` 管理库并拥有 CREATEDB 权限。
+    pub auto_create: bool,
+
+    /// 启动时创建演示用户（密码是公开的，只用于本地开发和演示）
+    pub seed_demo: bool,
 }
 
 impl DatabaseConfig {
@@ -38,6 +46,8 @@ impl fmt::Debug for DatabaseConfig {
             .field("url", &"<redacted>")
             .field("max_connections", &self.max_connections)
             .field("connect_timeout_secs", &self.connect_timeout_secs)
+            .field("auto_create", &self.auto_create)
+            .field("seed_demo", &self.seed_demo)
             .finish()
     }
 }

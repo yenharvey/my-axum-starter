@@ -222,6 +222,8 @@ mod tests {
 
         assert_eq!(config.server.port, 3000);
         assert!(!config.server.enable_docs);
+        assert!(!config.database.auto_create);
+        assert!(!config.database.seed_demo);
         assert_eq!(config.database.url, "postgresql://localhost/test");
         assert_eq!(config.auth.jwt_secret, JWT_SECRET);
         assert_eq!(config.auth.token_ttl_secs, 7 * 24 * 3600);
