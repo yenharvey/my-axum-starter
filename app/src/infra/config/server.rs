@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 /// 服务器配置（`[server]`）
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ServerConfig {
     /// 监听地址
     pub host: String,

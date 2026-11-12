@@ -51,6 +51,7 @@ pub enum LogRotation {
 
 /// 日志配置（`[logging]`）
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct LoggingConfig {
     /// 日志级别（可被 `RUST_LOG` 环境变量覆盖，以支持按模块过滤）
     pub level: LogLevel,

@@ -55,6 +55,7 @@ const LIST_KEYS: [&str; 4] = [
 
 /// 应用程序配置
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AppConfig {
     /// 服务器配置
     pub server: ServerConfig,
@@ -100,7 +101,7 @@ impl AppConfig {
             .add_source(File::with_name(&format!("config/{env}")).required(false))
             .add_source(File::with_name("config/local").required(false));
 
-        for (key, value) in env_overrides(&vars) {
+        for (key, value) in env_overrides(&vars)? {
             builder = if LIST_KEYS.contains(&key.as_str()) {
                 let items: Vec<String> = value
                     .split(',')
@@ -151,25 +152,47 @@ impl AppConfig {
 /// 把环境变量转换为 `section.key` 覆盖项
 ///
 /// 返回值按优先级从低到高排列：先是别名，后是 `APP_<SECTION>_<KEY>`。
-/// 空值以及不属于任何配置段的变量（如 `APP_ENV`）会被忽略。
-fn env_overrides(vars: &[(String, String)]) -> Vec<(String, String)> {
-    let vars = || vars.iter().filter(|(_, value)| !value.is_empty());
+///
+/// `APP_` 前缀是本应用专用的：除 `APP_ENV` 外，不属于任何配置段的 `APP_*` 变量
+/// 会被当作拼写错误而报错（键名是否存在由反序列化阶段检查）。值为空的变量视为未设置。
+fn env_overrides(vars: &[(String, String)]) -> Result<Vec<(String, String)>, ConfigError> {
+    let mut overrides = Vec::new();
 
-    let aliases = vars().filter_map(|(name, value)| {
-        ENV_ALIASES
-            .iter()
-            .find(|(alias, _)| alias == name)
-            .map(|(_, key)| (key.to_string(), value.clone()))
-    });
+    for (name, value) in vars {
+        if value.is_empty() {
+            continue;
+        }
+        if let Some((_, key)) = ENV_ALIASES.iter().find(|(alias, _)| alias == name) {
+            overrides.push((key.to_string(), value.clone()));
+        }
+    }
 
-    let prefixed = vars().filter_map(|(name, value)| {
-        let rest = name.strip_prefix("APP_")?.to_lowercase();
-        let (section, key) = rest.split_once('_')?;
-        (SECTIONS.contains(&section) && !key.is_empty())
-            .then(|| (format!("{section}.{key}"), value.clone()))
-    });
+    for (name, value) in vars {
+        let Some(rest) = name.strip_prefix("APP_") else {
+            continue;
+        };
+        if name == "APP_ENV" {
+            continue;
+        }
 
-    aliases.chain(prefixed).collect()
+        let rest = rest.to_lowercase();
+        let key = rest
+            .split_once('_')
+            .filter(|(section, key)| SECTIONS.contains(section) && !key.is_empty())
+            .map(|(section, key)| format!("{section}.{key}"))
+            .ok_or_else(|| {
+                ConfigError::Invalid(format!(
+                    "未知的环境变量 {name}：应为 APP_<SECTION>_<KEY>，SECTION 可选 {}",
+                    SECTIONS.join(" / ")
+                ))
+            })?;
+
+        if !value.is_empty() {
+            overrides.push((key, value.clone()));
+        }
+    }
+
+    Ok(overrides)
 }
 
 #[cfg(test)]
@@ -225,7 +248,7 @@ mod tests {
             ("APP_LOGGING_CONSOLE_FORMAT", "pretty"),
             ("APP_REDIS_URL", "redis://localhost:6379"),
             ("APP_ENV", "development"),
-            ("APP_UNKNOWN_KEY", "ignored"),
+            ("APP_LOGGING_FILE_DIR", ""),
         ])
         .unwrap();
 
@@ -269,5 +292,76 @@ mod tests {
             ])
             .is_err()
         );
+    }
+
+    #[test]
+    fn misspelled_env_vars_are_rejected() {
+        // 键名拼错
+        assert!(load(&[("APP_SERVER_PROT", "8080")]).is_err());
+        // 配置段不存在
+        assert!(load(&[("APP_SEVER_PORT", "8080")]).is_err());
+        assert!(load(&[("APP_PORT", "8080")]).is_err());
+        // 即使值为空，名字也要合法
+        assert!(load(&[("APP_UNKNOWN_KEY", "")]).is_err());
+    }
+
+    #[test]
+    fn unknown_keys_in_config_files_are_rejected() {
+        let parse = |toml: &str| {
+            Config::builder()
+                .add_source(File::from_str(DEFAULT_CONFIG, FileFormat::Toml))
+                .add_source(File::from_str(toml, FileFormat::Toml))
+                .build()
+                .and_then(Config::try_deserialize::<AppConfig>)
+        };
+
+        assert!(
+            parse(
+                "[server]
+port = 8080"
+            )
+            .is_ok()
+        );
+        assert!(
+            parse(
+                "[server]
+prot = 8080"
+            )
+            .is_err()
+        );
+        assert!(
+            parse(
+                "[sever]
+port = 8080"
+            )
+            .is_err()
+        );
+    }
+
+    /// 字符串表必须与 default.toml（即配置结构体）保持一致
+    #[test]
+    fn key_tables_match_default_config() {
+        let defaults = Config::builder()
+            .add_source(File::from_str(DEFAULT_CONFIG, FileFormat::Toml))
+            .build()
+            .unwrap();
+
+        let mut sections: Vec<String> = defaults
+            .clone()
+            .try_deserialize::<std::collections::HashMap<String, config::Value>>()
+            .unwrap()
+            .into_keys()
+            .collect();
+        sections.sort();
+        let mut expected: Vec<String> = SECTIONS.iter().map(|s| s.to_string()).collect();
+        expected.sort();
+        assert_eq!(sections, expected);
+
+        for key in LIST_KEYS {
+            assert!(
+                defaults.get_array(key).is_ok(),
+                "{key} 不是列表类型的配置项"
+            );
+        }
     }
 }

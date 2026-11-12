@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 /// CORS 跨域资源共享配置（`[cors]`）
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CorsConfig {
     /// 允许的源列表（如 `["https://example.com"]`）
     ///

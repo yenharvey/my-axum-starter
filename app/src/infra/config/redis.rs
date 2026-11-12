@@ -5,6 +5,7 @@ use std::fmt;
 ///
 /// Redis 是可选的：未配置 `url` 时不会初始化连接池。
 #[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RedisConfig {
     /// 连接 URL（可选，通常通过 `REDIS_URL` 环境变量提供）
     ///

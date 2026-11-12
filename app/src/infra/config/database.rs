@@ -3,6 +3,7 @@ use std::fmt;
 
 /// 数据库配置（`[database]`）
 #[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DatabaseConfig {
     /// 连接 URL（必需，通常通过 `DATABASE_URL` 环境变量提供）
     #[serde(default)]

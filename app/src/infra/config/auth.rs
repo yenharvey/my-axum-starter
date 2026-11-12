@@ -6,6 +6,7 @@ const MIN_JWT_SECRET_LEN: usize = 32;
 
 /// 认证配置（`[auth]`）
 #[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AuthConfig {
     /// JWT 签名密钥（必需，至少 32 个字符，通常通过 `JWT_SECRET` 环境变量提供）
     #[serde(default)]
