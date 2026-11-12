@@ -7,75 +7,62 @@
 - **Web框架**: Axum + SeaORM + PostgreSQL
 - **认证系统**: JWT令牌认证 + Argon2密码哈希
 - **限流控制**: tower_governor IP限流（全局10req/s，认证端2req/s）
-- **配置管理**: 支持config.toml和环境变量，支持多种配置格式
+- **配置管理**: 分层 TOML 配置 + `APP_<SECTION>_<KEY>` 环境变量覆盖，启动时校验
 - **错误处理**: 统一的错误处理，HTTP状态码+错误原因映射
 - **API响应**: 遵循 Google JSON Style Guide 标准，支持分页、资源元数据
-- **文档生成**: OpenAPI/Swagger文档（debug模式）
-- **中间件栈**: 日志追踪、CORS、压缩、请求ID等
-- **日志系统**: 支持文件日志轮转和自动清理
+- **文档生成**: OpenAPI 文档（`server.enable_docs` 开关，开发环境默认开启）
+- **中间件栈**: 日志追踪、CORS、压缩、请求ID、请求超时等
+- **日志系统**: 控制台 + JSON 文件日志，支持轮转和自动清理旧文件
 
 ## 项目结构
 
 ```shell
 ├── app/                          # 主应用程序
 │   ├── src/
-│   │   ├── main.rs
-│   │   ├── core/                 # 核心功能
-│   │   │   ├── config/           # 配置管理（模块化）
-│   │   │   │   ├── mod.rs
-│   │   │   │   ├── logging.rs    # 日志配置
-│   │   │   │   ├── database.rs   # 数据库配置
-│   │   │   │   └── server.rs     # 服务器配置
-│   │   │   ├── logging.rs        # 日志功能
-│   │   │   ├── response/         # API响应格式
-│   │   │   │   ├── mod.rs
-│   │   │   │   ├── api_response.rs
-│   │   │   │   ├── domain.rs
-│   │   │   │   ├── error.rs
-│   │   │   │   ├── reason.rs
-│   │   │   │   └── status.rs
-│   │   │   ├── state.rs          # 应用状态
-│   │   │   ├── middleware/       # 中间件
-│   │   │   │   ├── mod.rs
-│   │   │   │   └── auth.rs       # JWT认证中间件
-│   │   │   └── mod.rs
-│   │   ├── error/                # 错误处理
-│   │   │   ├── mod.rs
-│   │   │   └── auth.rs           # 认证错误
-│   │   ├── modules/              # 业务模块
-│   │   │   ├── user/             # 用户管理模块
-│   │   │   │   ├── mod.rs        # 路由定义
-│   │   │   │   ├── handler.rs    # 请求处理器
-│   │   │   │   ├── service.rs    # 业务逻辑
-│   │   │   │   └── dto.rs        # 数据传输对象
-│   │   │   └── docs/             # 文档模块
-│   │   ├── routes/               # API路由
-│   │   │   └── v1/               # V1版本API
-│   │   ├── shared/               # 共享工具
-│   │   │   ├── mod.rs
-│   │   │   ├── jwt.rs            # JWT服务
-│   │   │   └── password.rs       # 密码哈希（Argon2）
-│   │   └── lib.rs
+│   │   ├── main.rs               # 入口：加载配置、初始化日志、启动服务器
+│   │   ├── lib.rs                # 模块声明与常用类型导出
+│   │   ├── infra/                # 基础设施（与业务无关）
+│   │   │   ├── config/           # 配置加载与校验（每个配置段一个文件）
+│   │   │   ├── middleware/       # 认证、请求 ID、CORS、限流
+│   │   │   ├── logging.rs        # 日志初始化
+│   │   │   ├── state.rs          # 应用状态（数据库、Redis、JWT）
+│   │   │   └── server.rs         # 服务器启动、全局中间件装配、优雅关闭
+│   │   ├── shared/               # 跨业务模块共享
+│   │   │   ├── error/            # 错误类型（统一转换为 API 响应）
+│   │   │   ├── response/         # API 响应格式（Google JSON Style Guide）
+│   │   │   ├── jwt.rs            # JWT 服务
+│   │   │   ├── password.rs       # 密码哈希（Argon2）
+│   │   │   └── from_state.rs     # 从应用状态构造服务
+│   │   ├── modules/              # 业务模块（每个业务域一个目录）
+│   │   │   └── user/
+│   │   │       ├── mod.rs        # 路由定义
+│   │   │       ├── handler.rs    # 请求处理器
+│   │   │       ├── service.rs    # 业务逻辑
+│   │   │       └── dto.rs        # 数据传输对象
+│   │   └── routes/               # 路由装配
+│   │       ├── mod.rs            # 根路由
+│   │       ├── v1.rs             # V1 版本 API
+│   │       ├── system.rs         # 健康检查、欢迎页、favicon
+│   │       ├── docs.rs           # OpenAPI 文档
+│   │       └── fallback.rs       # 404 兜底
 │   ├── assets/                   # 静态文件
+│   ├── templates/                # Askama 模板
 │   └── Cargo.toml
-├── entity/                       # 数据库实体（SeaORM生成）
-│   ├── src/
-│   │   ├── lib.rs
-│   │   ├── user.rs
-│   │   └── enums/
-│   │       └── user_status.rs    # 用户状态枚举
-│   └── Cargo.toml
+├── entity/                       # 数据库实体（SeaORM）
 ├── migration/                    # 数据库迁移
-│   ├── src/
-│   │   ├── lib.rs
-│   │   └── m20220101_000001_create_user_table.rs
-│   └── Cargo.toml
-├── config.toml                   # 配置文件
-├── config.dev.toml               # 开发环境配置
+├── config/
+│   ├── default.toml              # 所有配置项及默认值（唯一来源）
+│   ├── development.toml          # 开发环境覆盖
+│   └── production.toml           # 生产环境覆盖
+├── compose.yaml                  # Docker Compose 配置
+├── Dockerfile
 ├── .env.example                  # 环境变量示例
-├── Cargo.toml                    # Workspace配置
+├── Cargo.toml                    # Workspace 配置
 └── README.md
 ```
+
+新增业务模块时：在 `modules/` 下建目录（`dto` / `handler` / `service` / `mod.rs`），
+然后在 `routes/v1.rs` 里挂载它的 `routes()`。
 
 ## 快速开始
 
@@ -96,24 +83,22 @@ cargo generate yenharvey/my-axum-starter --name my-new-project
 
 ### 2. 环境配置
 
-创建 `.env` 文件：
+```bash
+cp .env.example .env
+```
+
+然后至少填写两个必需项：
 
 ```bash
-# 必需
 DATABASE_URL=postgresql://postgres:your_password@localhost:5432/your_database
-JWT_SECRET=your-jwt-secret-key
-
-# 可选
-REDIS_URL=redis://localhost:6379
-APP_SERVER_HOST=127.0.0.1
-APP_SERVER_PORT=3001
-APP_LOGGING_LEVEL=info
+JWT_SECRET=至少32个字符的随机字符串
 ```
 
 ### 3. 数据库设置
 
+应用启动时会自动执行迁移，无需手动操作。需要单独执行时：
+
 ```bash
-# 执行数据库迁移
 sea-orm-cli migrate up
 ```
 
@@ -127,26 +112,39 @@ cargo run -p app
 
 ## 配置
 
-### config.toml
+所有配置项及默认值都在 [`config/default.toml`](config/default.toml) 里，按优先级从低到高依次覆盖：
 
-```toml
-[server]
-host = "127.0.0.1"
-port = 3001
-timeout = 30
+| 来源 | 说明 |
+| --- | --- |
+| `config/default.toml` | 默认值（编译进二进制） |
+| `config/{APP_ENV}.toml` | 环境专属配置，`APP_ENV` 默认为 `development` |
+| `config/local.toml` | 个人本地覆盖，不进版本库 |
+| `DATABASE_URL` / `REDIS_URL` / `JWT_SECRET` | 敏感信息的环境变量 |
+| `APP_<SECTION>_<KEY>` | 覆盖任意配置项 |
 
-[database]
-max_connections = 10
-pool_timeout = 30
+环境变量命名规则：配置项 `section.key` 对应 `APP_<SECTION>_<KEY>`，列表用逗号分隔。
 
-[logging]
-level = "info"
-format = "pretty"
+```bash
+APP_SERVER_PORT=8080                    # server.port
+APP_DATABASE_MAX_CONNECTIONS=20         # database.max_connections
+APP_LOGGING_LEVEL=debug                 # logging.level
+APP_CORS_ALLOW_ORIGINS=https://a.com,https://b.com
 ```
+
+配置在启动时校验，缺少必需项或取值无效会直接报错退出。
+
+### Docker
+
+```bash
+cp .env.example .env   # 填写 DATABASE_URL 和 JWT_SECRET
+docker compose up -d --build
+```
+
+容器内默认 `APP_ENV=production`，监听 3000 端口。
 
 ## API 文档
 
-debug 模式下访问：http://localhost:3001/docs
+`server.enable_docs = true` 时（开发环境默认开启）访问：http://localhost:3001/docs
 
 ## API 测试指南
 
@@ -168,8 +166,7 @@ curl -X POST http://127.0.0.1:3001/v1/user/register \
 {
   "api_version": "1.0",
   "data": {
-    "kind": "User",
-    "id": "1",
+    "id": 1,
     "username": "testuser",
     "email": "test@example.com"
   }
@@ -192,8 +189,7 @@ curl -X POST http://127.0.0.1:3001/v1/user/login \
 {
   "api_version": "1.0",
   "data": {
-    "kind": "User",
-    "id": "1",
+    "id": 1,
     "username": "testuser",
     "email": "test@example.com",
     "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
@@ -216,8 +212,7 @@ curl -X GET http://127.0.0.1:3001/v1/user/me \
 {
   "api_version": "1.0",
   "data": {
-    "kind": "User",
-    "id": "1",
+    "id": 1,
     "username": "testuser",
     "email": "test@example.com"
   }

@@ -1,4 +1,6 @@
-use crate::{ApiResponse, AppError, AppState, core::middleware::CurrentUser, shared::FromState};
+use crate::infra::middleware::CurrentUser;
+use crate::shared::FromState;
+use crate::{ApiResponse, AppError, AppState};
 use aide::transform::TransformOperation;
 use axum::Json;
 use axum::extract::{Extension, State};
@@ -18,7 +20,8 @@ use super::service::UserService;
 ///
 /// # 返回
 /// 成功返回注册用户信息（ID、用户名、邮箱），失败返回错误
-#[instrument(skip(state))]
+// 注意：不能把 `req` 记录进 span，否则明文密码会被写入日志
+#[instrument(skip_all, fields(username = %req.username))]
 pub async fn register(
     State(state): State<Arc<AppState>>,
     Json(req): Json<RegisterRequest>,
@@ -36,7 +39,7 @@ pub async fn register(
 pub fn register_docs(op: TransformOperation) -> TransformOperation {
     op.description("用户注册")
         .tag("认证")
-        .response::<201, ApiResponse<RegisterResponse>>()
+        .response::<200, ApiResponse<RegisterResponse>>()
 }
 
 /// 用户登录处理器
@@ -48,8 +51,9 @@ pub fn register_docs(op: TransformOperation) -> TransformOperation {
 /// * `req` - 登录请求数据（用户名/邮箱、密码）
 ///
 /// # 返回
-/// 成功返回用户信息和 JWT 令牌（7天过期），失败返回错误
-#[instrument(skip(state))]
+/// 成功返回用户信息和 JWT 令牌，失败返回错误
+// 注意：不能把 `req` 记录进 span，否则明文密码会被写入日志
+#[instrument(skip_all, fields(username_or_email = %req.username_or_email))]
 pub async fn login(
     State(state): State<Arc<AppState>>,
     Json(req): Json<LoginRequest>,

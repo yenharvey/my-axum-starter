@@ -15,58 +15,45 @@ pub struct Claims {
     pub iat: i64,
 }
 
-impl Claims {
-    /// 创建新的 claims，默认过期时间为 7 天
-    pub fn new(user_id: i32, expires_in_secs: i64) -> Self {
-        let now = Utc::now().timestamp();
-        Self {
-            sub: user_id,
-            exp: now + expires_in_secs,
-            iat: now,
-        }
-    }
-}
-
-/// JWT 服务
+/// JWT 服务：签发和校验访问令牌（HS256）
 #[derive(Clone, Debug)]
 pub struct JwtService {
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
+    ttl_secs: i64,
 }
 
 impl JwtService {
-    /// 创建新的 JWT 服务
-    pub fn new(secret: String) -> Self {
+    /// 创建 JWT 服务
+    ///
+    /// # 参数
+    /// * `secret` - 签名密钥
+    /// * `ttl_secs` - 令牌有效期（秒）
+    pub fn new(secret: &str, ttl_secs: u64) -> Self {
         Self {
             encoding_key: EncodingKey::from_secret(secret.as_bytes()),
             decoding_key: DecodingKey::from_secret(secret.as_bytes()),
+            ttl_secs: i64::try_from(ttl_secs).unwrap_or(i64::MAX),
         }
     }
 
-    /// 生成 JWT token
-    ///
-    /// # 参数
-    /// * `user_id` - 用户 ID
-    /// * `expires_in_secs` - 过期时间（秒）
-    ///
-    /// # 返回
-    /// 返回生成的 token 字符串
-    pub fn generate_token(
-        &self,
-        user_id: i32,
-        expires_in_secs: i64,
-    ) -> Result<String, jsonwebtoken::errors::Error> {
-        let claims = Claims::new(user_id, expires_in_secs);
+    /// 令牌有效期（秒）
+    pub fn ttl_secs(&self) -> i64 {
+        self.ttl_secs
+    }
+
+    /// 为用户签发令牌
+    pub fn generate_token(&self, user_id: i32) -> Result<String, jsonwebtoken::errors::Error> {
+        let now = Utc::now().timestamp();
+        let claims = Claims {
+            sub: user_id,
+            exp: now.saturating_add(self.ttl_secs),
+            iat: now,
+        };
         encode(&Header::default(), &claims, &self.encoding_key)
     }
 
-    /// 验证并解析 JWT token
-    ///
-    /// # 参数
-    /// * `token` - JWT token 字符串
-    ///
-    /// # 返回
-    /// 返回解析后的 token 数据，包含 claims 和 header
+    /// 校验并解析令牌（签名无效或已过期时返回错误）
     pub fn verify_token(
         &self,
         token: &str,
@@ -74,14 +61,31 @@ impl JwtService {
         decode::<Claims>(token, &self.decoding_key, &Validation::default())
     }
 
-    /// 从 token 中提取用户 ID
-    ///
-    /// # 参数
-    /// * `token` - JWT token 字符串
-    ///
-    /// # 返回
-    /// 返回用户 ID，如果 token 无效或过期则返回错误
+    /// 从令牌中提取用户 ID
     pub fn extract_user_id(&self, token: &str) -> Result<i32, jsonwebtoken::errors::Error> {
         self.verify_token(token).map(|data| data.claims.sub)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SECRET: &str = "test-secret-at-least-32-characters-long";
+
+    #[test]
+    fn token_round_trip() {
+        let jwt = JwtService::new(SECRET, 3600);
+        let token = jwt.generate_token(42).unwrap();
+
+        assert_eq!(jwt.extract_user_id(&token).unwrap(), 42);
+    }
+
+    #[test]
+    fn token_signed_with_another_secret_is_rejected() {
+        let token = JwtService::new(SECRET, 3600).generate_token(42).unwrap();
+        let other = JwtService::new("another-secret-at-least-32-characters", 3600);
+
+        assert!(other.extract_user_id(&token).is_err());
     }
 }

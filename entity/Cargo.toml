@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 sea-orm = { workspace = true }
-validator = { workspace = true }
 strum = { workspace = true }
 num_enum = { workspace = true }
 schemars = { workspace = true }

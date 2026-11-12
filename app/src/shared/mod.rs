@@ -1,8 +1,15 @@
-/// 从应用状态中提取服务的 Trait
-mod from_state;
-/// JWT 令牌生成和验证服务
-pub mod jwt;
-/// 密码哈希和验证功能（使用 Argon2）
-pub mod password;
+//! 跨业务模块共享的类型与工具
+//!
+//! - [`error`]：统一错误类型
+//! - [`response`]：统一 API 响应格式
+//! - [`jwt`]：JWT 令牌生成和验证
+//! - [`password`]：密码哈希和验证（Argon2）
+//! - [`FromState`]：从应用状态构造服务的 Trait
 
-pub use from_state::*;
+pub mod error;
+mod from_state;
+pub mod jwt;
+pub mod password;
+pub mod response;
+
+pub use from_state::FromState;

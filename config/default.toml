@@ -1,39 +1,59 @@
-# 默认配置（所有环境共享的保守基准值）
-# 环境特定配置在 development.toml / production.toml 中覆盖
+# 默认配置 —— 所有配置项及其默认值的唯一来源
+#
+# 本文件会被编译进二进制，因此即使运行目录下没有 config/ 也能启动。
+#
+# 覆盖方式（优先级从低到高）：
+#   1. config/{APP_ENV}.toml      环境专属配置（APP_ENV 默认为 development）
+#   2. config/local.toml          个人本地覆盖（不进版本库）
+#   3. DATABASE_URL / REDIS_URL / JWT_SECRET
+#   4. APP_<SECTION>_<KEY>        例如 APP_SERVER_PORT=8080、APP_DATABASE_MAX_CONNECTIONS=20
+#                                 列表用逗号分隔：APP_CORS_ALLOW_ORIGINS=https://a.com,https://b.com
 
 [server]
 host = "0.0.0.0"
 port = 3000
-timeout = 300
+# 单个请求的超时时间（秒），超时返回 408
+request_timeout_secs = 300
+# 是否挂载 /docs API 文档
+enable_docs = false
 
 [database]
-# url 通过环境变量 DATABASE_URL 设置（必需）
+# url 必需，没有默认值：通过 DATABASE_URL 环境变量提供
 max_connections = 10
-pool_timeout = 30
+# 建立连接 / 从连接池获取连接的超时时间（秒）
+connect_timeout_secs = 30
+
+[redis]
+# url 可选：通过 REDIS_URL 环境变量提供，不配置则不启用 Redis
+# 格式：redis://[:password@]host:port[/db]
+
+[auth]
+# jwt_secret 必需，没有默认值：通过 JWT_SECRET 环境变量提供（至少 32 个字符）
+# 访问令牌有效期（秒），默认 7 天
+token_ttl_secs = 604800
 
 [logging]
+# trace / debug / info / warn / error
 level = "info"
-console_format = "compact"
 console = true
+# pretty（多行，适合开发）/ compact（单行，适合生产）
+console_format = "compact"
+# 文件日志始终为 JSON 格式
 file = true
 file_dir = "./logs"
 file_prefix = "app"
+# daily / hourly / never
 rotation = "daily"
+# 最多保留的日志文件数量，0 表示不限制
 max_files = 30
-cleanup_enabled = true
-cleanup_interval = "7x24"
-
-[secrets]
-# JWT 密钥通过环境变量 JWT_SECRET 设置（必需，至少 32 字符）
-
-[redis]
-# Redis URL 通过环境变量 REDIS_URL 设置（可选）
-# 格式：redis://[:password]@host:port/db
 
 [cors]
+# ["*"] 允许任何源；[] 不允许任何跨域请求
 allow_origins = []
-allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"]
+allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
 allow_headers = ["Authorization", "Content-Type", "Accept", "X-Request-ID"]
+expose_headers = ["Content-Type", "X-Request-ID", "X-Total-Count"]
+# 为 true 时 allow_origins / allow_methods / allow_headers 都不能使用 "*"
 allow_credentials = false
-expose_headers = ["Content-Type", "X-Total-Count"]
-max_age = 3600
+# 预检请求结果的缓存时间（秒）
+max_age_secs = 3600

@@ -43,9 +43,8 @@ COPY app/assets/ /app/app/assets/
 
 RUN mkdir -p /app/logs
 
-EXPOSE 3001
+EXPOSE 3000
 
-ENV RUN_ENV=production \
-    RUST_LOG=info
+ENV APP_ENV=production
 
 ENTRYPOINT ["/app/app"]

@@ -9,7 +9,7 @@ license = "MIT"
 repository = "https://github.com/{{authors}}/{{project-name}}"
 
 [workspace.dependencies]
-sea-orm = { version = "1.1.19", features = [
+sea-orm = { version = "2.0.4", features = [
     "macros",
     "debug-print",
     "with-chrono",
@@ -19,11 +19,9 @@ sea-orm = { version = "1.1.19", features = [
     "with-json",
     "with-time",
 ] }
-serde = { version = "1.0.219", features = ["derive"] }
-strum = { version = "0.27.2", features = ["derive"] }
-num_enum = "0.7.5"
+serde = { version = "1.0.229", features = ["derive"] }
+strum = { version = "0.28.0", features = ["derive"] }
+num_enum = "0.7.6"
+# 受 aide 0.15 约束，暂不能升级到 schemars 1.x（需等待 aide 0.16 稳定版）
 schemars = { version = "0.9.0", features = ["derive", "chrono04", "uuid1"] }
-sonyflake = "0.4.0"
-harsh = "0.2.2"
-sqids = "0.4.2"
-validator = { version = "0.20.0", features = ["derive"] }
+validator = { version = "0.21.0", features = ["derive"] }

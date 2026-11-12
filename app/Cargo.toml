@@ -10,48 +10,47 @@ aide = { version = "0.15.0", features = [
     "axum-json",
     "axum-query",
     "axum",
-    "axum-extra-headers",
     "axum-form",
     "axum-multipart",
 ] }
-axum = { version = "0.8.4", features = ["macros", "multipart"] }
-axum-extra = { version = "0.10.1", features = ["typed-header"] }
-chrono = { version = "0.4.41", features = ["serde"] }
-figment = { version = "0.10.19", features = ["toml", "env"] }
+axum = { version = "0.8.9", features = ["macros", "multipart"] }
+chrono = { version = "0.4.45", features = ["serde"] }
 sea-orm = { workspace = true }
 serde = { workspace = true }
-tokio = { version = "1.45.1", features = ["full"] }
-tower = { version = "0.5.2", features = ["timeout", "buffer", "limit"] }
-tower-http = { version = "0.6.6", features = [
+tokio = { version = "1.54.1", features = ["full"] }
+tower = { version = "0.5.3", features = ["buffer"] }
+tower-http = { version = "0.7.1", features = [
     "trace",
+    "timeout",
     "cors",
     "fs",
     "compression-br",
     "compression-deflate",
     "compression-gzip",
 ] }
-uuid = { version = "1.17.0", features = ["v4", "serde"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
+uuid = { version = "1.29.2", features = ["v4", "serde"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 schemars = { workspace = true }
 entity = { path = "../entity" }
 migration = { path = "../migration" }
-serde_json = "1.0.140"
-askama = "0.14.0"
-thiserror = "2.0.12"
+serde_json = "1.0.154"
+askama = "0.16.1"
+thiserror = "2.0.21"
 dotenvy = "0.15.7"
-anyhow = "1.0.98"
-tracing-appender = "0.2.3"
-config = "0.15.18"
-deadpool-redis = { version = "0.22.0", features = ["rt_tokio_1", "serde"] }
+anyhow = "1.0.104"
+tracing-appender = "0.2.5"
+config = "0.15.27"
+deadpool-redis = { version = "0.23.1", features = ["rt_tokio_1", "serde"] }
 tower_governor = { version = "0.8.0", features = ["tracing"] }
+# 与 tower_governor 依赖的版本保持一致（仅用于限流层的类型签名）
+governor = "0.10.4"
 validator = { workspace = true }
 strum = { workspace = true }
 num_enum = { workspace = true }
-sonyflake = { workspace = true }
-harsh = { workspace = true }
-sqids = { workspace = true }
-jsonwebtoken = { version = "10.2.0", features = ["use_pem", "rust_crypto"] }
-argon2 = "0.5.3"
-rand = "0.9.2"
-indexmap = { version = "2.12.0", features = ["serde"] }
+jsonwebtoken = { version = "11.1.0", features = ["use_pem", "rust_crypto"] }
+argon2 = "0.6.0"
+indexmap = { version = "2.14.2", features = ["serde"] }
+
+[dev-dependencies]
+tower = { version = "0.5.3", features = ["util"] }
